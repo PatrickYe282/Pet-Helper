@@ -1250,6 +1250,40 @@
 
     .detail-close:hover { background: rgba(0,0,0,0.7); }
 
+    .detail-spot-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      width: 100%;
+      margin-top: 10px;
+      padding: 11px;
+      background: #eff6ff;
+      color: #2563eb;
+      border: 1.5px solid #bfdbfe;
+      font-family: inherit;
+      font-size: 0.85rem;
+      font-weight: 700;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    .detail-spot-btn:hover { background: #dbeafe; border-color: #93c5fd; }
+
+    .sighting-item {
+      padding: 10px 12px;
+      background: var(--bg);
+      border-radius: 8px;
+      margin-bottom: 8px;
+      font-size: 0.83rem;
+      color: #374151;
+      line-height: 1.6;
+    }
+
+    .sighting-item-location { font-weight: 700; color: var(--text); }
+    .sighting-item-time { font-size: 0.72rem; color: #9ca3af; margin-top: 2px; }
+
     .detail-share-btn {
       display: flex;
       align-items: center;
@@ -1582,6 +1616,37 @@
         <div class="detail-row"><span class="detail-row-label">Phone</span><span id="detail-phone"></span></div>
         <div class="detail-row" id="detail-extra-row"><span class="detail-row-label">Details</span><span id="detail-extra"></span></div>
         <button class="detail-share-btn" onclick="shareReport()">Share This Report</button>
+        <button class="detail-spot-btn" id="detail-spot-btn" onclick="openSightingModal()" style="display:none">📍 I Spotted This Pet</button>
+        <div id="detail-sightings" style="display:none">
+          <div style="font-size:0.78rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin:20px 0 10px">Sightings</div>
+          <div id="sightings-list"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SIGHTING MODAL -->
+  <div class="modal-backdrop" id="sighting-modal" onclick="closeSightingOnBackdrop(event)">
+    <div class="modal-box" style="max-width:400px">
+      <div class="modal-top">
+        <h3>📍 Report a Sighting</h3>
+        <button class="modal-close" onclick="closeSightingModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:0.88rem;color:#374151;margin-bottom:16px;line-height:1.6;">Where did you spot this pet? Only the owner will see this.</p>
+        <div class="form-group" style="margin-bottom:12px">
+          <label>Where did you see them? <span class="required-star">*</span></label>
+          <input id="sighting-location" type="text" placeholder="e.g. Oak St & 3rd Ave">
+          <span class="field-error" id="sighting-location-error">Please enter a location.</span>
+        </div>
+        <div class="form-group" style="margin-bottom:4px">
+          <label>Extra notes (optional)</label>
+          <textarea id="sighting-notes" placeholder="e.g. Was heading north, looked scared..." style="min-height:60px"></textarea>
+        </div>
+        <button class="form-submit" id="sighting-btn" onclick="submitSighting()" style="margin-top:16px">
+          <span class="spinner" id="sighting-spinner"></span>
+          <span id="sighting-label">Send Sighting</span>
+        </button>
       </div>
     </div>
   </div>
@@ -1933,9 +1998,12 @@
       }
     }
 
+    let _currentDetailId = null;
+
     function openDetail(id) {
       const p = (window._reportData || []).find(r => r.id === id);
       if (!p) return;
+      _currentDetailId = id;
       const img = document.getElementById('detail-img');
       if (p.photo_url) { img.src = p.photo_url; img.style.display = 'block'; }
       else img.style.display = 'none';
@@ -1949,8 +2017,77 @@
       const extraRow = document.getElementById('detail-extra-row');
       if (p.details) { document.getElementById('detail-extra').textContent = p.details; extraRow.style.display = 'flex'; }
       else extraRow.style.display = 'none';
+
+      const isOwner = currentUser && p.user_id === currentUser.id;
+      const isOther = currentUser && p.user_id !== currentUser.id && p.status !== 'found';
+      document.getElementById('detail-spot-btn').style.display = isOther ? 'flex' : 'none';
+      const sightingsSection = document.getElementById('detail-sightings');
+      if (isOwner) { sightingsSection.style.display = 'block'; loadSightings(id); }
+      else sightingsSection.style.display = 'none';
+
       document.getElementById('detail-overlay').classList.add('open');
       document.body.style.overflow = 'hidden';
+    }
+
+    async function loadSightings(petId) {
+      const list = document.getElementById('sightings-list');
+      list.innerHTML = '<div style="font-size:0.82rem;color:var(--text-muted)">Loading…</div>';
+      const { data, error } = await db.from('sightings').select('*').eq('pet_id', petId).order('created_at', { ascending: false });
+      if (error || !data || data.length === 0) {
+        list.innerHTML = '<div style="font-size:0.82rem;color:var(--text-muted)">No sightings yet.</div>';
+        return;
+      }
+      list.innerHTML = data.map(s => `
+        <div class="sighting-item">
+          <div class="sighting-item-location">📍 ${escHtml(s.location)}</div>
+          ${s.notes ? `<div>${escHtml(s.notes)}</div>` : ''}
+          <div class="sighting-item-time">${timeAgo(s.created_at)}</div>
+        </div>
+      `).join('');
+    }
+
+    function openSightingModal() {
+      document.getElementById('sighting-location').value = '';
+      document.getElementById('sighting-notes').value = '';
+      document.getElementById('sighting-location-error').classList.remove('show');
+      document.getElementById('sighting-location').classList.remove('invalid');
+      document.getElementById('sighting-modal').classList.add('open');
+    }
+
+    function closeSightingModal() {
+      document.getElementById('sighting-modal').classList.remove('open');
+    }
+
+    function closeSightingOnBackdrop(e) {
+      if (e.target === document.getElementById('sighting-modal')) closeSightingModal();
+    }
+
+    async function submitSighting() {
+      const location = document.getElementById('sighting-location').value.trim();
+      if (!location) {
+        document.getElementById('sighting-location').classList.add('invalid');
+        document.getElementById('sighting-location-error').classList.add('show');
+        return;
+      }
+      document.getElementById('sighting-location').classList.remove('invalid');
+      document.getElementById('sighting-location-error').classList.remove('show');
+      const btn = document.getElementById('sighting-btn');
+      const spinner = document.getElementById('sighting-spinner');
+      btn.disabled = true;
+      spinner.style.display = 'block';
+      document.getElementById('sighting-label').textContent = 'Sending…';
+      const { error } = await db.from('sightings').insert({
+        pet_id: _currentDetailId,
+        user_id: currentUser.id,
+        location,
+        notes: document.getElementById('sighting-notes').value.trim()
+      });
+      btn.disabled = false;
+      spinner.style.display = 'none';
+      document.getElementById('sighting-label').textContent = 'Send Sighting';
+      if (error) { alert('Error: ' + error.message); return; }
+      closeSightingModal();
+      alert('Sighting sent! The owner has been notified.');
     }
 
     function closeDetail() {
