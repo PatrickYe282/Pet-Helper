@@ -1399,6 +1399,10 @@
       <div class="stat-number">24 hrs</div>
       <div class="stat-label">Critical window</div>
     </div>
+    <div class="stat">
+      <div class="stat-number" id="reunited-count">—</div>
+      <div class="stat-label">Reunited via this site</div>
+    </div>
   </div>
 
   <div class="tab-bar">
@@ -1892,6 +1896,7 @@
       const { error } = await db.from('lost_pets').update({ status: 'found' }).eq('id', id);
       if (error) { alert('Error: ' + error.message); return; }
       await loadReports();
+      loadReunitedCount();
     }
 
     function updateCityDropdown(data) {
@@ -2270,7 +2275,13 @@
       currentUser = session?.user ?? null;
       updateNavAuth();
       loadReports();
+      loadReunitedCount();
     });
+
+    async function loadReunitedCount() {
+      const { count } = await db.from('lost_pets').select('*', { count: 'exact', head: true }).eq('status', 'found');
+      document.getElementById('reunited-count').textContent = count ?? 0;
+    }
     setInterval(() => {
       if (document.getElementById('tab-reports').classList.contains('active')) loadReports();
     }, 60000);
