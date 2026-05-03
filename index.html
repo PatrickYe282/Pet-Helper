@@ -1403,7 +1403,10 @@
       <div class="card">
         <h2>Recently Reported Lost Pets</h2>
         <div class="reports-toolbar">
-          <input class="search-input" id="search-input" type="text" placeholder="Search by name or location…" oninput="filterReports()">
+          <input class="search-input" id="search-input" type="text" placeholder="Search by name, city, or location…" oninput="filterReports()">
+          <select class="search-input" id="city-filter" onchange="filterReports()" style="flex:0;min-width:130px">
+            <option value="">All Cities</option>
+          </select>
           <div class="filter-pills">
             <button class="pill active" data-filter="all" onclick="setPillFilter('all', this)">All</button>
             <button class="pill" data-filter="Dog" onclick="setPillFilter('Dog', this)">Dogs</button>
@@ -1808,6 +1811,7 @@
       window._reportData = data;
       const lostCount = data.filter(p => p.status !== 'found').length;
       updateTabBadge(lostCount);
+      updateCityDropdown(data);
       filterReports();
     }
 
@@ -1825,6 +1829,14 @@
       await loadReports();
     }
 
+    function updateCityDropdown(data) {
+      const select = document.getElementById('city-filter');
+      const current = select.value;
+      const cities = [...new Set(data.map(p => p.city).filter(Boolean))].sort();
+      select.innerHTML = '<option value="">All Cities</option>' + cities.map(c => `<option value="${escHtml(c)}">${escHtml(c)}</option>`).join('');
+      if (cities.includes(current)) select.value = current;
+    }
+
     function updateTabBadge(count) {
       const btn = document.getElementById('tab-reports-btn');
       const existing = btn.querySelector('.tab-badge');
@@ -1839,9 +1851,13 @@
 
     function filterReports() {
       const search = (document.getElementById('search-input').value || '').toLowerCase();
+      const cityFilter = document.getElementById('city-filter').value;
       let filtered = allReports.filter(p => showFound ? p.status === 'found' : p.status !== 'found');
       if (activeFilter !== 'all') {
         filtered = filtered.filter(p => (p.pet_type || '').toLowerCase() === activeFilter.toLowerCase());
+      }
+      if (cityFilter) {
+        filtered = filtered.filter(p => (p.city || '') === cityFilter);
       }
       if (search) {
         filtered = filtered.filter(p =>
