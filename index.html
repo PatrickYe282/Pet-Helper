@@ -2039,7 +2039,7 @@
       if (nearMeActive && nearMeCity) {
         filtered = filtered.filter(p => (p.city || '').toLowerCase() === nearMeCity.toLowerCase());
       } else if (cityFilter) {
-        filtered = filtered.filter(p => (p.city || '') === cityFilter);
+        filtered = filtered.filter(p => (p.city || '').toLowerCase() === cityFilter.toLowerCase());
       }
       if (search) {
         filtered = filtered.filter(p =>
@@ -2361,7 +2361,7 @@
         last_seen: document.getElementById('f-location').value.trim(),
         date_seen: document.getElementById('f-date').value || null,
         phone: document.getElementById('f-phone').value.trim(),
-        city: document.getElementById('f-city').value.trim(),
+        city: document.getElementById('f-city').value.trim().replace(/\b\w/g, c => c.toUpperCase()),
         details: document.getElementById('f-details').value.trim(),
         photo_url,
         user_id: currentUser.id
