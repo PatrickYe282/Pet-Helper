@@ -1363,17 +1363,27 @@
 
     /* RESPONSIVE */
     @media (max-width: 600px) {
-      nav { padding: 0 18px; }
+      nav { padding: 0 14px; }
+      .nav-logo { font-size: 0.95rem; }
+      .nav-user { display: none; }
+      .nav-btn { font-size: 0.75rem; padding: 7px 12px; }
+      .nav-btn-ghost { font-size: 0.75rem; padding: 6px 10px; }
       .hero-content { padding: 0 20px; }
-      header h1 { font-size: 2.1rem; }
-      .stat { padding: 18px 22px; }
-      .stat-number { font-size: 1.35rem; }
+      header { height: 400px; }
+      header h1 { font-size: 2rem; }
+      header p { font-size: 0.88rem; }
+      .stat { padding: 14px 16px; }
+      .stat-number { font-size: 1.2rem; }
+      .stat-label { font-size: 0.6rem; }
       main { padding: 0 14px; margin: 24px auto; }
-      .card { padding: 22px 18px; }
+      .card { padding: 20px 16px; }
       .form-grid { grid-template-columns: 1fr; }
       .form-group.full { grid-column: 1; }
       .reports-toolbar { flex-direction: column; align-items: stretch; }
       .filter-pills { justify-content: flex-start; }
+      .pet-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+      .detail-box { border-radius: 10px; }
+      .modal-box { border-radius: 10px; }
     }
   </style>
 </head>
@@ -1830,6 +1840,10 @@
       loadReports();
     });
 
+    function escHtml(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
     function isOldReport(dateStr) {
       if (!dateStr) return false;
       const days = (Date.now() - new Date(dateStr).getTime()) / 86400000;
@@ -1888,10 +1902,6 @@
       }).join('');
     }
 
-    function escHtml(s) {
-      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-    }
-
     async function loadReports() {
       const { data, error } = await db.from('lost_pets').select('*').order('created_at', { ascending: false }).limit(40);
       document.getElementById('pet-grid').innerHTML = '';
@@ -1905,6 +1915,7 @@
       const lostCount = data.filter(p => p.status !== 'found').length;
       updateTabBadge(lostCount);
       updateCityDropdown(data);
+      checkNewSightings();
       filterReports();
     }
 
@@ -1929,6 +1940,33 @@
       const cities = [...new Set(data.map(p => p.city).filter(Boolean))].sort();
       select.innerHTML = '<option value="">All Cities</option>' + cities.map(c => `<option value="${escHtml(c)}">${escHtml(c)}</option>`).join('');
       if (cities.includes(current)) select.value = current;
+    }
+
+    async function checkNewSightings() {
+      if (!currentUser) return;
+      const myReports = allReports.filter(p => p.user_id === currentUser.id);
+      if (myReports.length === 0) return;
+      const lastChecked = localStorage.getItem('sightings_checked') || '1970-01-01';
+      const ids = myReports.map(p => p.id);
+      const { data } = await db.from('sightings').select('id').in('pet_id', ids).gt('created_at', lastChecked).limit(1);
+      const dot = document.getElementById('sighting-dot');
+      if (data && data.length > 0) {
+        if (!dot) {
+          const btn = document.getElementById('tab-reports-btn');
+          const d = document.createElement('span');
+          d.id = 'sighting-dot';
+          d.style.cssText = 'display:inline-block;width:8px;height:8px;background:#ef4444;border-radius:50%;margin-left:5px;vertical-align:middle;';
+          btn.appendChild(d);
+        }
+      } else if (dot) {
+        dot.remove();
+      }
+    }
+
+    function clearSightingDot() {
+      localStorage.setItem('sightings_checked', new Date().toISOString());
+      const dot = document.getElementById('sighting-dot');
+      if (dot) dot.remove();
     }
 
     function updateTabBadge(count) {
@@ -2051,7 +2089,7 @@
       const isOther = currentUser && p.user_id !== currentUser.id && p.status !== 'found';
       document.getElementById('detail-spot-btn').style.display = isOther ? 'flex' : 'none';
       const sightingsSection = document.getElementById('detail-sightings');
-      if (isOwner) { sightingsSection.style.display = 'block'; loadSightings(id); }
+      if (isOwner) { sightingsSection.style.display = 'block'; loadSightings(id); clearSightingDot(); }
       else sightingsSection.style.display = 'none';
 
       document.getElementById('detail-overlay').classList.add('open');
@@ -2081,10 +2119,14 @@
       document.getElementById('sighting-location-error').classList.remove('show');
       document.getElementById('sighting-location').classList.remove('invalid');
       document.getElementById('sighting-modal').classList.add('open');
+      document.body.style.overflow = 'hidden';
     }
 
     function closeSightingModal() {
       document.getElementById('sighting-modal').classList.remove('open');
+      if (!document.getElementById('detail-overlay').classList.contains('open')) {
+        document.body.style.overflow = '';
+      }
     }
 
     function closeSightingOnBackdrop(e) {
@@ -2092,6 +2134,7 @@
     }
 
     async function submitSighting() {
+      if (!currentUser) { closeSightingModal(); return; }
       const location = document.getElementById('sighting-location').value.trim();
       if (!location) {
         document.getElementById('sighting-location').classList.add('invalid');
