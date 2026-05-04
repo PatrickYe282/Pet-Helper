@@ -717,6 +717,13 @@
       100% { background-position: -200% 0; }
     }
 
+    .result-count {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-weight: 500;
+      margin-bottom: 2px;
+    }
+
     .no-reports {
       grid-column: 1 / -1;
       text-align: center;
@@ -1482,12 +1489,19 @@
             <button class="pill pill-found" id="found-toggle" onclick="toggleFoundView(this)">Show Reunited 🎉</button>
           </div>
         </div>
+        <div class="result-count" id="result-count"></div>
         <div class="pet-grid" id="pet-grid">
           <div class="skeleton-grid" style="grid-column:1/-1;display:contents" id="skeleton">
             ${Array(6).fill('<div class="skeleton-card"><div class="skeleton-img"></div><div class="skeleton-body"><div class="skeleton-line short"></div><div class="skeleton-line medium"></div><div class="skeleton-line short"></div></div></div>').join('')}
           </div>
         </div>
       </div>
+    </div>
+
+    <div class="card" id="happy-endings-card" style="display:none;border-color:#bbf7d0;background:linear-gradient(135deg,#f0fdf4,#ffffff)">
+      <h2 style="border-color:#bbf7d0;color:#15803d">🎉 Happy Endings</h2>
+      <p style="font-size:0.85rem;color:#16a34a;margin:-8px 0 18px">These pets made it home thanks to the community.</p>
+      <div class="pet-grid" id="happy-grid"></div>
     </div>
 
     <div class="tab-panel" id="tab-neighbor">
@@ -1922,6 +1936,28 @@
       updateCityDropdown(data);
       checkNewSightings();
       filterReports();
+      loadHappyEndings();
+    }
+
+    async function loadHappyEndings() {
+      const { data } = await db.from('lost_pets').select('*').eq('status', 'found').order('created_at', { ascending: false }).limit(3);
+      const card = document.getElementById('happy-endings-card');
+      if (!data || data.length === 0) { card.style.display = 'none'; return; }
+      card.style.display = 'block';
+      document.getElementById('happy-grid').innerHTML = data.map(p => `
+        <div class="pet-card pet-card-found" onclick="openDetail(${p.id})">
+          <div class="found-banner">🎉 Reunited!</div>
+          ${p.photo_url
+            ? `<img class="pet-card-img" src="${p.photo_url}" alt="${escHtml(p.pet_name)}" loading="lazy">`
+            : `<div class="pet-card-img-placeholder">${petEmoji(p.pet_type)}</div>`}
+          <div class="pet-card-body">
+            <div class="pet-card-type">${escHtml(p.pet_type || 'Pet')}${p.city ? ` · ${escHtml(p.city)}` : ''}</div>
+            <div class="pet-card-name">${escHtml(p.pet_name)}</div>
+            <div class="pet-card-detail">${escHtml(p.last_seen || '—')}</div>
+            <div class="pet-card-time">${timeAgo(p.created_at)}</div>
+          </div>
+        </div>
+      `).join('');
     }
 
     async function deleteReport(id) {
@@ -2005,6 +2041,13 @@
         );
       }
       renderCards(filtered);
+      const pool = allReports.filter(p => showFound ? p.status === 'found' : p.status !== 'found');
+      const countEl = document.getElementById('result-count');
+      if (countEl) {
+        countEl.textContent = filtered.length === pool.length
+          ? `${pool.length} report${pool.length !== 1 ? 's' : ''}`
+          : `${filtered.length} of ${pool.length} reports`;
+      }
     }
 
     function toggleFoundView(btn) {
