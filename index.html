@@ -1395,7 +1395,7 @@
       Lost<em>Pet</em>Finder
     </div>
     <div class="nav-right" id="nav-right">
-      <button class="nav-btn-ghost" onclick="openAuthModal('login')">Sign In</button>
+      <button class="nav-btn-ghost" onclick="openAuthModal('login')">Log In</button>
       <button class="nav-btn" onclick="openAuthModal('login')">+ Report a Lost Pet</button>
     </div>
   </nav>
@@ -1692,12 +1692,12 @@
       </div>
       <div class="modal-body">
         <div class="auth-tabs">
-          <button class="auth-tab active" id="tab-login-btn" onclick="switchAuthTab('login')">Sign In</button>
-          <button class="auth-tab" id="tab-signup-btn" onclick="switchAuthTab('signup')">Create Account</button>
+          <button class="auth-tab active" id="tab-signup-btn" onclick="switchAuthTab('signup')">Create Account</button>
+          <button class="auth-tab" id="tab-login-btn" onclick="switchAuthTab('login')">Log In</button>
         </div>
         <div class="auth-error" id="auth-error"></div>
 
-        <div class="auth-panel active" id="auth-login">
+        <div class="auth-panel" id="auth-login">
           <div class="form-group" style="margin-bottom:12px">
             <label>Email</label>
             <input id="login-email" type="email" placeholder="you@email.com">
@@ -1708,11 +1708,12 @@
           </div>
           <button class="form-submit" id="login-btn" onclick="signIn()" style="margin-top:18px">
             <span class="spinner" id="login-spinner"></span>
-            <span id="login-label">Sign In</span>
+            <span id="login-label">Log In</span>
           </button>
+          <p style="text-align:center;margin-top:16px;font-size:0.82rem;color:var(--text-muted)">Don't have an account? <button onclick="switchAuthTab('signup')" style="background:none;border:none;color:var(--accent);font-weight:700;cursor:pointer;font-family:inherit;font-size:inherit;padding:0">Create one</button></p>
         </div>
 
-        <div class="auth-panel" id="auth-signup">
+        <div class="auth-panel active" id="auth-signup">
           <div class="form-group" style="margin-bottom:12px">
             <label>Email</label>
             <input id="signup-email" type="email" placeholder="you@email.com">
@@ -1725,6 +1726,10 @@
             <span class="spinner" id="signup-spinner"></span>
             <span id="signup-label">Create Account</span>
           </button>
+          <p style="text-align:center;margin-top:16px;font-size:0.82rem;color:var(--text-muted)">Already have an account? <button onclick="switchAuthTab('login')" style="background:none;border:none;color:var(--accent);font-weight:700;cursor:pointer;font-family:inherit;font-size:inherit;padding:0">Log In</button></p>
+        </div>
+
+        <div style="display:none" id="auth-login-footer">
         </div>
       </div>
     </div>
@@ -1761,14 +1766,14 @@
         `;
       } else {
         nav.innerHTML = `
-          <button class="nav-btn-ghost" onclick="openAuthModal('login')">Sign In</button>
+          <button class="nav-btn-ghost" onclick="openAuthModal('login')">Log In</button>
           <button class="nav-btn" onclick="openOverlay()">+ Report a Lost Pet</button>
         `;
       }
     }
 
     function openAuthModal(tab) {
-      switchAuthTab(tab || 'login');
+      switchAuthTab(tab || 'signup');
       document.getElementById('auth-error').classList.remove('show');
       document.getElementById('auth-modal').classList.add('open');
       document.body.style.overflow = 'hidden';
@@ -1797,7 +1802,7 @@
       const label = document.getElementById(type + '-label');
       btn.disabled = loading;
       spinner.style.display = loading ? 'block' : 'none';
-      label.textContent = loading ? (type === 'login' ? 'Signing in…' : 'Creating account…') : (type === 'login' ? 'Sign In' : 'Create Account');
+      label.textContent = loading ? (type === 'login' ? 'Logging in…' : 'Creating account…') : (type === 'login' ? 'Log In' : 'Create Account');
     }
 
     function showAuthError(msg) {
