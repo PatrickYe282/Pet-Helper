@@ -1645,7 +1645,7 @@
   <div class="modal-backdrop" id="overlay" onclick="closeOnBackdrop(event)">
     <div class="modal-box">
       <div class="modal-top">
-        <h3>Report a Lost Pet</h3>
+        <h3 id="report-modal-title">Report a Lost Pet</h3>
         <button class="modal-close" onclick="closeOverlay()">✕</button>
       </div>
       <div class="modal-body">
@@ -1946,7 +1946,7 @@
       reportType = type;
       document.getElementById('rtype-lost').classList.toggle('active', type === 'lost');
       document.getElementById('rtype-stray').classList.toggle('active', type === 'stray');
-      document.querySelector('.modal-top h3').textContent = type === 'lost' ? 'Report a Lost Pet' : 'Report a Found Stray';
+      document.getElementById('report-modal-title').textContent = type === 'lost' ? 'Report a Lost Pet' : 'Report a Found Stray';
       const locLabel = document.getElementById('f-location-label');
       locLabel.innerHTML = (type === 'lost' ? 'Last Seen Location' : 'Where Did You Find Them?') + ' <span class="required-star">*</span>';
       document.getElementById('f-location').placeholder = type === 'lost' ? 'e.g. Main St & 5th Ave' : 'e.g. Oak Park near the fountain';
@@ -2172,7 +2172,7 @@
         );
       }
       renderCards(filtered);
-      const pool = allReports.filter(p => showFound ? p.status === 'found' : p.status !== 'found');
+      const pool = allReports.filter(p => showFound ? p.status === 'found' : (p.status !== 'found' && p.status !== 'found_stray'));
       const countEl = document.getElementById('result-count');
       if (countEl) {
         countEl.textContent = filtered.length === pool.length
@@ -2273,26 +2273,28 @@
       const p = (window._reportData || []).find(r => r.id === _currentDetailId);
       if (!p) return;
       const win = window.open('', '_blank');
+      const isStrayFlyer = p.status === 'found_stray';
+      const flyerColor = isStrayFlyer ? '#2563eb' : '#d95f2b';
       win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
-<title>Lost Pet — ${escHtml(p.pet_name)}</title>
+<title>${isStrayFlyer ? 'Found Stray' : 'Lost Pet'} — ${escHtml(p.pet_name)}</title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:Arial,sans-serif;max-width:580px;margin:0 auto;padding:20px;color:#111}
-  .hdr{background:#d95f2b;color:white;text-align:center;padding:18px;border-radius:8px 8px 0 0}
+  .hdr{background:${flyerColor};color:white;text-align:center;padding:18px;border-radius:8px 8px 0 0}
   .hdr h1{font-size:2.4rem;font-weight:900;letter-spacing:.05em}
   .hdr p{font-size:.95rem;opacity:.9;margin-top:4px}
   .pet-img{width:100%;max-height:280px;object-fit:cover;display:block}
   .placeholder{width:100%;height:200px;background:#f3f4f6;display:flex;align-items:center;justify-content:center;font-size:5rem}
-  .body{border:3px solid #d95f2b;border-top:none;padding:20px;border-radius:0 0 8px 8px}
+  .body{border:3px solid ${flyerColor};border-top:none;padding:20px;border-radius:0 0 8px 8px}
   .name{font-size:1.9rem;font-weight:900;text-align:center;margin-bottom:14px}
   .row{display:flex;gap:10px;padding:7px 0;border-bottom:1px solid #e5e7eb;font-size:.9rem}
   .row:last-of-type{border-bottom:none}
   .lbl{font-weight:700;color:#6b7280;width:100px;flex-shrink:0;text-transform:uppercase;font-size:.7rem;letter-spacing:.05em;padding-top:2px}
-  .phone{font-size:1.5rem;font-weight:900;text-align:center;color:#d95f2b;margin-top:14px;padding:12px;border:2px dashed #d95f2b;border-radius:8px}
+  .phone{font-size:1.5rem;font-weight:900;text-align:center;color:${flyerColor};margin-top:14px;padding:12px;border:2px dashed ${flyerColor};border-radius:8px}
   .footer{text-align:center;margin-top:14px;font-size:.72rem;color:#9ca3af}
   @media print{body{padding:0}}
 </style></head><body>
-<div class="hdr"><h1>🐾 LOST PET</h1><p>Please help bring ${escHtml(p.pet_name)} home</p></div>
+<div class="hdr"><h1>${isStrayFlyer ? '📢 FOUND STRAY' : '🐾 LOST PET'}</h1><p>${isStrayFlyer ? `Found near ${escHtml(p.last_seen || 'unknown location')} — is this your pet?` : `Please help bring ${escHtml(p.pet_name)} home`}</p></div>
 ${p.photo_url ? `<img class="pet-img" src="${p.photo_url}" alt="${escHtml(p.pet_name)}">` : `<div class="placeholder">${petEmoji(p.pet_type)}</div>`}
 <div class="body">
   <div class="name">${escHtml(p.pet_name)}</div>
@@ -2348,7 +2350,7 @@ ${p.photo_url ? `<img class="pet-img" src="${p.photo_url}" alt="${escHtml(p.pet_
       else extraRow.style.display = 'none';
 
       const isOwner = currentUser && p.user_id === currentUser.id;
-      const isOther = currentUser && p.user_id !== currentUser.id && p.status !== 'found';
+      const isOther = currentUser && p.user_id !== currentUser.id && p.status !== 'found' && p.status !== 'found_stray';
       document.getElementById('detail-spot-btn').style.display = isOther ? 'flex' : 'none';
       const sightingsSection = document.getElementById('detail-sightings');
       if (isOwner) { sightingsSection.style.display = 'block'; loadSightings(id); clearSightingDot(); }
@@ -2474,9 +2476,7 @@ ${p.photo_url ? `<img class="pet-img" src="${p.photo_url}" alt="${escHtml(p.pet_
 
     function goToReports() {
       closeOverlay();
-      const btn = document.getElementById('tab-reports-btn');
-      switchTab('tab-reports', btn);
-      loadReports();
+      switchTab('tab-reports', document.getElementById('tab-reports-btn'));
     }
 
     function validateForm() {
