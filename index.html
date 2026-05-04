@@ -557,6 +557,19 @@
       margin-top: 6px;
     }
 
+    .old-badge {
+      display: inline-block;
+      background: #fef9c3;
+      color: #854d0e;
+      border: 1px solid #fde047;
+      border-radius: 20px;
+      font-size: 0.62rem;
+      font-weight: 700;
+      padding: 1px 7px;
+      margin-left: 4px;
+      vertical-align: middle;
+    }
+
     .pet-card-found {
       border-color: #bbf7d0;
       background: #f0fdf4;
@@ -1817,6 +1830,12 @@
       loadReports();
     });
 
+    function isOldReport(dateStr) {
+      if (!dateStr) return false;
+      const days = (Date.now() - new Date(dateStr).getTime()) / 86400000;
+      return days >= 7;
+    }
+
     function timeAgo(dateStr) {
       if (!dateStr) return '';
       const diff = Date.now() - new Date(dateStr).getTime();
@@ -1861,7 +1880,7 @@
             <div class="pet-card-detail">${escHtml(p.last_seen || '—')}</div>
             <div class="pet-card-detail">${escHtml(p.breed || '—')}</div>
             <div class="pet-card-phone">${escHtml(p.phone || '—')}</div>
-            <div class="pet-card-time">${timeAgo(p.created_at)}</div>
+            <div class="pet-card-time">${timeAgo(p.created_at)}${isOldReport(p.created_at) ? ' <span class="old-badge">May be outdated</span>' : ''}</div>
             ${!found && currentUser && p.user_id === currentUser.id ? `<button class="found-btn" onclick="event.stopPropagation();markAsFound(${p.id})">🎉 Mark as Found</button>` : ''}
             ${currentUser && p.user_id === currentUser.id ? `<button class="delete-btn" onclick="event.stopPropagation();deleteReport(${p.id})">Delete Report</button>` : ''}
           </div>
