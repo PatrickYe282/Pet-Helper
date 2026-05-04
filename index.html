@@ -1934,6 +1934,7 @@
       if (error || !data || data.length === 0) {
         document.getElementById('pet-grid').innerHTML = '<div class="no-reports">No reports yet — be the first to report a lost pet.</div>';
         updateTabBadge(0);
+        loadHappyEndings();
         return;
       }
       allReports = data;
@@ -2105,7 +2106,7 @@
 
     function setPillFilter(filter, btn) {
       activeFilter = filter;
-      document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('[data-filter]').forEach(p => p.classList.remove('active'));
       btn.classList.add('active');
       filterReports();
     }
