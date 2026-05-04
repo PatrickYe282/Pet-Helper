@@ -480,6 +480,10 @@
     .pill-found:hover { border-color: #22c55e; color: #16a34a; background: #f0fdf4; }
     .pill-found-active { background: #22c55e !important; border-color: #22c55e !important; color: white !important; }
 
+    .pill-location { border-color: #3b82f6; color: #2563eb; }
+    .pill-location:hover { border-color: #3b82f6; color: #2563eb; background: #eff6ff; }
+    .pill-location-active { background: #3b82f6 !important; border-color: #3b82f6 !important; color: white !important; }
+
     /* PET GRID */
     .pet-grid {
       display: grid;
@@ -1487,6 +1491,7 @@
             <button class="pill" data-filter="Bird" onclick="setPillFilter('Bird', this)">Birds</button>
             <button class="pill" data-filter="Other" onclick="setPillFilter('Other', this)">Other</button>
             <button class="pill pill-found" id="found-toggle" onclick="toggleFoundView(this)">Show Reunited 🎉</button>
+            <button class="pill pill-location" id="near-me-btn" onclick="toggleNearMe(this)">📍 Near Me</button>
           </div>
         </div>
         <div class="result-count" id="result-count"></div>
@@ -1768,6 +1773,8 @@
     let activeFilter = 'all';
     let showFound = false;
     let currentUser = null;
+    let nearMeActive = false;
+    let nearMeCity = null;
 
     /* ── AUTH ── */
     function updateNavAuth() {
@@ -2029,7 +2036,9 @@
       if (activeFilter !== 'all') {
         filtered = filtered.filter(p => (p.pet_type || '').toLowerCase() === activeFilter.toLowerCase());
       }
-      if (cityFilter) {
+      if (nearMeActive && nearMeCity) {
+        filtered = filtered.filter(p => (p.city || '').toLowerCase() === nearMeCity.toLowerCase());
+      } else if (cityFilter) {
         filtered = filtered.filter(p => (p.city || '') === cityFilter);
       }
       if (search) {
@@ -2048,6 +2057,43 @@
           ? `${pool.length} report${pool.length !== 1 ? 's' : ''}`
           : `${filtered.length} of ${pool.length} reports`;
       }
+    }
+
+    async function toggleNearMe(btn) {
+      if (nearMeActive) {
+        nearMeActive = false;
+        nearMeCity = null;
+        btn.classList.remove('pill-location-active');
+        btn.textContent = '📍 Near Me';
+        filterReports();
+        return;
+      }
+      if (!navigator.geolocation) { alert('Your browser does not support location.'); return; }
+      btn.textContent = '📍 Locating…';
+      btn.disabled = true;
+      try {
+        const pos = await new Promise((resolve, reject) =>
+          navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 8000 })
+        );
+        const { latitude, longitude } = pos.coords;
+        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`);
+        const geo = await res.json();
+        nearMeCity = geo.address.city || geo.address.town || geo.address.village || geo.address.county || null;
+        if (!nearMeCity) {
+          btn.textContent = '📍 Near Me';
+          btn.disabled = false;
+          alert('Could not detect your city. Try the city dropdown filter instead.');
+          return;
+        }
+        nearMeActive = true;
+        btn.classList.add('pill-location-active');
+        btn.textContent = `📍 ${nearMeCity}`;
+      } catch (e) {
+        btn.textContent = '📍 Near Me';
+        alert('Location access was denied or timed out.');
+      }
+      btn.disabled = false;
+      filterReports();
     }
 
     function toggleFoundView(btn) {
