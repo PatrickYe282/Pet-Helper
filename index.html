@@ -650,6 +650,41 @@
     .auth-error { font-size: 0.8rem; color: var(--error); background: var(--error-light); border: 1px solid var(--error-border); border-radius: 6px; padding: 9px 12px; margin-bottom: 14px; display: none; }
     .auth-error.show { display: block; }
 
+    .report-type-toggle {
+      display: flex;
+      background: var(--bg);
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      padding: 3px;
+      margin-bottom: 18px;
+    }
+    .report-type-btn {
+      flex: 1;
+      background: none;
+      border: none;
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      padding: 8px;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+    .report-type-btn.active { background: var(--white); color: var(--text); box-shadow: var(--shadow-sm); }
+
+    .found-stray-banner {
+      background: #2563eb;
+      color: white;
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-align: center;
+      padding: 5px;
+      letter-spacing: 0.04em;
+    }
+    .pet-card-stray { border-color: #bfdbfe; background: #eff6ff; }
+    .pet-card-stray:hover { border-color: #2563eb; }
+
     .your-report-badge {
       display: inline-block;
       font-size: 0.62rem;
@@ -1332,6 +1367,26 @@
 
     .detail-share-btn:hover { background: var(--accent-dark); transform: translateY(-1px); }
 
+    .detail-print-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      width: 100%;
+      margin-top: 10px;
+      padding: 11px;
+      background: var(--bg);
+      color: #374151;
+      border: 1.5px solid var(--border);
+      font-family: inherit;
+      font-size: 0.85rem;
+      font-weight: 700;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .detail-print-btn:hover { background: var(--border); border-color: #d1d5db; }
+
     /* ANIMATIONS */
     @keyframes fadeUp {
       from { opacity: 0; transform: translateY(14px); }
@@ -1380,21 +1435,29 @@
       .nav-btn { font-size: 0.75rem; padding: 7px 12px; }
       .nav-btn-ghost { font-size: 0.75rem; padding: 6px 10px; }
       .hero-content { padding: 0 20px; }
-      header { height: 400px; }
-      header h1 { font-size: 2rem; }
-      header p { font-size: 0.88rem; }
-      .stat { padding: 14px 16px; }
+      header { height: 340px; }
+      header h1 { font-size: 1.75rem; }
+      header p { font-size: 0.85rem; margin-bottom: 20px; }
+      .hero-btn { font-size: 0.85rem; padding: 12px 22px; }
+      .stat-strip { overflow-x: auto; justify-content: flex-start; scrollbar-width: none; }
+      .stat-strip::-webkit-scrollbar { display: none; }
+      .stat { padding: 14px 20px; flex-shrink: 0; }
       .stat-number { font-size: 1.2rem; }
       .stat-label { font-size: 0.6rem; }
       main { padding: 0 14px; margin: 24px auto; }
-      .card { padding: 20px 16px; }
+      .card { padding: 18px 14px; }
       .form-grid { grid-template-columns: 1fr; }
       .form-group.full { grid-column: 1; }
       .reports-toolbar { flex-direction: column; align-items: stretch; }
-      .filter-pills { justify-content: flex-start; }
-      .pet-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+      .filter-pills { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; scrollbar-width: none; padding-bottom: 2px; }
+      .filter-pills::-webkit-scrollbar { display: none; }
+      .pill { flex-shrink: 0; }
+      .pet-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
       .detail-box { border-radius: 10px; }
+      .detail-box img { height: 180px; }
       .modal-box { border-radius: 10px; }
+      .report-type-toggle { margin-bottom: 14px; }
+      .tab { padding: 13px 14px 11px; font-size: 0.78rem; gap: 5px; }
     }
   </style>
 </head>
@@ -1502,6 +1565,12 @@
         </div>
       </div>
 
+      <div class="card" id="found-strays-card" style="display:none;border-color:#bfdbfe;background:linear-gradient(135deg,#eff6ff,#ffffff)">
+        <h2 style="border-color:#bfdbfe;color:#1d4ed8">📢 Found Strays Near You</h2>
+        <p style="font-size:0.85rem;color:#2563eb;margin:-8px 0 18px">Someone found these pets — is one of them yours?</p>
+        <div class="pet-grid" id="strays-grid"></div>
+      </div>
+
       <div class="card" id="happy-endings-card" style="display:none;border-color:#bbf7d0;background:linear-gradient(135deg,#f0fdf4,#ffffff)">
         <h2 style="border-color:#bbf7d0;color:#15803d">🎉 Happy Endings</h2>
         <p style="font-size:0.85rem;color:#16a34a;margin:-8px 0 18px">These pets made it home thanks to the community.</p>
@@ -1581,6 +1650,10 @@
       </div>
       <div class="modal-body">
         <div id="form-content">
+          <div class="report-type-toggle">
+            <button class="report-type-btn active" id="rtype-lost" onclick="setReportType('lost')">🐾 Lost Pet</button>
+            <button class="report-type-btn" id="rtype-stray" onclick="setReportType('stray')">📢 Found a Stray</button>
+          </div>
           <div class="form-grid">
             <div class="form-group">
               <label>Pet Name <span class="required-star">*</span></label>
@@ -1603,7 +1676,7 @@
               <input id="f-breed" type="text" placeholder="e.g. Golden Retriever, brown collar">
             </div>
             <div class="form-group">
-              <label>Last Seen Location <span class="required-star">*</span></label>
+              <label id="f-location-label">Last Seen Location <span class="required-star">*</span></label>
               <input id="f-location" type="text" placeholder="e.g. Main St & 5th Ave">
               <span class="field-error" id="err-location">Please enter where the pet was last seen.</span>
             </div>
@@ -1667,6 +1740,7 @@
         <div class="detail-row"><span class="detail-row-label">Phone</span><span id="detail-phone"></span></div>
         <div class="detail-row" id="detail-extra-row"><span class="detail-row-label">Details</span><span id="detail-extra"></span></div>
         <button class="detail-share-btn" onclick="shareReport()">Share This Report</button>
+        <button class="detail-print-btn" onclick="printFlyer()">🖨️ Print Flyer</button>
         <button class="detail-spot-btn" id="detail-spot-btn" onclick="openSightingModal()" style="display:none">📍 I Spotted This Pet</button>
         <div id="detail-sightings" style="display:none">
           <div style="font-size:0.78rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin:20px 0 10px">Sightings</div>
@@ -1775,6 +1849,8 @@
     let currentUser = null;
     let nearMeActive = false;
     let nearMeCity = null;
+    let reportType = 'lost';
+    let pendingReportId = null;
 
     /* ── AUTH ── */
     function updateNavAuth() {
@@ -1866,6 +1942,20 @@
       loadReports();
     });
 
+    function setReportType(type) {
+      reportType = type;
+      document.getElementById('rtype-lost').classList.toggle('active', type === 'lost');
+      document.getElementById('rtype-stray').classList.toggle('active', type === 'stray');
+      document.querySelector('.modal-top h3').textContent = type === 'lost' ? 'Report a Lost Pet' : 'Report a Found Stray';
+      const locLabel = document.getElementById('f-location-label');
+      locLabel.innerHTML = (type === 'lost' ? 'Last Seen Location' : 'Where Did You Find Them?') + ' <span class="required-star">*</span>';
+      document.getElementById('f-location').placeholder = type === 'lost' ? 'e.g. Main St & 5th Ave' : 'e.g. Oak Park near the fountain';
+      const successP = document.querySelector('#success-msg p');
+      if (successP) successP.textContent = type === 'lost'
+        ? 'Your neighborhood has been notified. We hope your pet comes home soon.'
+        : 'Your found stray report is live. Hopefully the owner sees it soon!';
+    }
+
     function escHtml(s) {
       return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
@@ -1907,9 +1997,10 @@
       }
       grid.innerHTML = data.map(p => {
         const found = p.status === 'found';
+        const stray = p.status === 'found_stray';
         return `
-        <div class="pet-card ${found ? 'pet-card-found' : ''}" id="card-${p.id}" onclick="openDetail(${p.id})">
-          ${found ? '<div class="found-banner">🎉 Reunited!</div>' : ''}
+        <div class="pet-card ${found ? 'pet-card-found' : stray ? 'pet-card-stray' : ''}" id="card-${p.id}" onclick="openDetail(${p.id})">
+          ${found ? '<div class="found-banner">🎉 Reunited!</div>' : stray ? '<div class="found-stray-banner">📢 Found Stray</div>' : ''}
           ${p.photo_url
             ? `<img class="pet-card-img" src="${p.photo_url}" alt="${escHtml(p.pet_name)}" loading="lazy">`
             : `<div class="pet-card-img-placeholder">${petEmoji(p.pet_type)}</div>`}
@@ -1934,17 +2025,47 @@
       if (error || !data || data.length === 0) {
         document.getElementById('pet-grid').innerHTML = '<div class="no-reports">No reports yet — be the first to report a lost pet.</div>';
         updateTabBadge(0);
+        loadFoundStrays();
         loadHappyEndings();
         return;
       }
       allReports = data;
       window._reportData = data;
-      const lostCount = data.filter(p => p.status !== 'found').length;
+      const lostCount = data.filter(p => p.status !== 'found' && p.status !== 'found_stray').length;
       updateTabBadge(lostCount);
       updateCityDropdown(data);
       checkNewSightings();
       filterReports();
+      loadFoundStrays();
       loadHappyEndings();
+      if (pendingReportId) {
+        const id = pendingReportId;
+        pendingReportId = null;
+        switchTab('tab-reports', document.getElementById('tab-reports-btn'));
+        setTimeout(() => openDetail(id), 50);
+      }
+    }
+
+    async function loadFoundStrays() {
+      const { data } = await db.from('lost_pets').select('*').eq('status', 'found_stray').order('created_at', { ascending: false }).limit(6);
+      const card = document.getElementById('found-strays-card');
+      if (!data || data.length === 0) { card.style.display = 'none'; return; }
+      card.style.display = 'block';
+      document.getElementById('strays-grid').innerHTML = data.map(p => `
+        <div class="pet-card pet-card-stray" onclick="openDetail(${p.id})">
+          <div class="found-stray-banner">📢 Found Stray</div>
+          ${p.photo_url
+            ? `<img class="pet-card-img" src="${p.photo_url}" alt="${escHtml(p.pet_name)}" loading="lazy">`
+            : `<div class="pet-card-img-placeholder">${petEmoji(p.pet_type)}</div>`}
+          <div class="pet-card-body">
+            <div class="pet-card-type">${escHtml(p.pet_type || 'Pet')}${p.city ? ` · ${escHtml(p.city)}` : ''}</div>
+            <div class="pet-card-name">${escHtml(p.pet_name || 'Unknown')}</div>
+            <div class="pet-card-detail">${escHtml(p.last_seen || '—')}</div>
+            <div class="pet-card-phone">${escHtml(p.phone || '—')}</div>
+            <div class="pet-card-time">${timeAgo(p.created_at)}</div>
+          </div>
+        </div>
+      `).join('');
     }
 
     async function loadHappyEndings() {
@@ -2033,7 +2154,7 @@
     function filterReports() {
       const search = (document.getElementById('search-input').value || '').toLowerCase();
       const cityFilter = document.getElementById('city-filter').value;
-      let filtered = allReports.filter(p => showFound ? p.status === 'found' : p.status !== 'found');
+      let filtered = allReports.filter(p => showFound ? p.status === 'found' : (p.status !== 'found' && p.status !== 'found_stray'));
       if (activeFilter !== 'all') {
         filtered = filtered.filter(p => (p.pet_type || '').toLowerCase() === activeFilter.toLowerCase());
       }
@@ -2148,15 +2269,61 @@
       }
     }
 
+    function printFlyer() {
+      const p = (window._reportData || []).find(r => r.id === _currentDetailId);
+      if (!p) return;
+      const win = window.open('', '_blank');
+      win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+<title>Lost Pet — ${escHtml(p.pet_name)}</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:Arial,sans-serif;max-width:580px;margin:0 auto;padding:20px;color:#111}
+  .hdr{background:#d95f2b;color:white;text-align:center;padding:18px;border-radius:8px 8px 0 0}
+  .hdr h1{font-size:2.4rem;font-weight:900;letter-spacing:.05em}
+  .hdr p{font-size:.95rem;opacity:.9;margin-top:4px}
+  .pet-img{width:100%;max-height:280px;object-fit:cover;display:block}
+  .placeholder{width:100%;height:200px;background:#f3f4f6;display:flex;align-items:center;justify-content:center;font-size:5rem}
+  .body{border:3px solid #d95f2b;border-top:none;padding:20px;border-radius:0 0 8px 8px}
+  .name{font-size:1.9rem;font-weight:900;text-align:center;margin-bottom:14px}
+  .row{display:flex;gap:10px;padding:7px 0;border-bottom:1px solid #e5e7eb;font-size:.9rem}
+  .row:last-of-type{border-bottom:none}
+  .lbl{font-weight:700;color:#6b7280;width:100px;flex-shrink:0;text-transform:uppercase;font-size:.7rem;letter-spacing:.05em;padding-top:2px}
+  .phone{font-size:1.5rem;font-weight:900;text-align:center;color:#d95f2b;margin-top:14px;padding:12px;border:2px dashed #d95f2b;border-radius:8px}
+  .footer{text-align:center;margin-top:14px;font-size:.72rem;color:#9ca3af}
+  @media print{body{padding:0}}
+</style></head><body>
+<div class="hdr"><h1>🐾 LOST PET</h1><p>Please help bring ${escHtml(p.pet_name)} home</p></div>
+${p.photo_url ? `<img class="pet-img" src="${p.photo_url}" alt="${escHtml(p.pet_name)}">` : `<div class="placeholder">${petEmoji(p.pet_type)}</div>`}
+<div class="body">
+  <div class="name">${escHtml(p.pet_name)}</div>
+  <div class="row"><span class="lbl">Type</span><span>${escHtml(p.pet_type || '—')}</span></div>
+  ${p.breed ? `<div class="row"><span class="lbl">Breed</span><span>${escHtml(p.breed)}</span></div>` : ''}
+  <div class="row"><span class="lbl">Last Seen</span><span>${escHtml(p.last_seen || '—')}${p.city ? `, ${escHtml(p.city)}` : ''}</span></div>
+  ${p.date_seen ? `<div class="row"><span class="lbl">Date</span><span>${escHtml(p.date_seen)}</span></div>` : ''}
+  ${p.details ? `<div class="row"><span class="lbl">Description</span><span>${escHtml(p.details)}</span></div>` : ''}
+  <div class="phone">📞 ${escHtml(p.phone || '—')}</div>
+  <div class="footer">Posted on LostPetFinder · ${new Date(p.created_at).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}</div>
+</div>
+</body></html>`);
+      win.document.close();
+      win.focus();
+      setTimeout(() => win.print(), 400);
+    }
+
     async function shareReport() {
+      const p = (window._reportData || []).find(r => r.id === _currentDetailId);
       const name = document.getElementById('detail-name').textContent;
       const location = document.getElementById('detail-location').textContent;
-      const text = `🐾 Lost pet: ${name} — last seen near ${location}. Can you help? ${window.location.href}`;
+      const url = `${window.location.origin}${window.location.pathname}?report=${_currentDetailId}`;
+      const isStray = p && p.status === 'found_stray';
+      const text = isStray
+        ? `📢 Found stray pet: ${name} near ${location}. Is this yours? ${url}`
+        : `🐾 Lost pet: ${name} — last seen near ${location}. Can you help? ${url}`;
       if (navigator.share) {
-        navigator.share({ title: `Lost pet: ${name}`, text, url: window.location.href });
+        navigator.share({ title: isStray ? `Found stray: ${name}` : `Lost pet: ${name}`, text, url });
       } else {
         await navigator.clipboard.writeText(text);
-        alert('Report link copied to clipboard!');
+        alert('Link copied! Share it to help find the owner.');
       }
     }
 
@@ -2298,6 +2465,7 @@
       document.getElementById('form-content').style.display = 'block';
       document.getElementById('success-msg').classList.remove('show');
       resetForm();
+      setReportType('lost');
     }
 
     function closeOnBackdrop(e) {
@@ -2365,7 +2533,8 @@
         city: document.getElementById('f-city').value.trim().replace(/\b\w/g, c => c.toUpperCase()),
         details: document.getElementById('f-details').value.trim(),
         photo_url,
-        user_id: currentUser.id
+        user_id: currentUser.id,
+        status: reportType === 'stray' ? 'found_stray' : null
       });
 
       btn.disabled = false;
@@ -2431,6 +2600,9 @@
     function nextQuestion() { currentQ++; renderQuiz(); }
     function restartQuiz() { currentQ = 0; score = 0; renderQuiz(); }
     function toggleMyth(item) { item.classList.toggle('open'); }
+
+    const _urlParam = new URLSearchParams(window.location.search).get('report');
+    if (_urlParam) pendingReportId = parseInt(_urlParam);
 
     renderQuiz();
     db.auth.getSession().then(({ data: { session } }) => {
