@@ -717,6 +717,24 @@
 
     .delete-btn:hover { background: #fef2f2; border-color: #dc2626; }
 
+    .bump-btn {
+      display: block;
+      width: 100%;
+      margin-top: 6px;
+      padding: 7px;
+      background: none;
+      border: 1.5px solid #e0e7ff;
+      border-radius: 6px;
+      color: #4f46e5;
+      font-family: inherit;
+      font-size: 0.75rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .bump-btn:hover { background: #eef2ff; border-color: #a5b4fc; }
+    .bump-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
     /* SKELETON */
     .skeleton-grid {
       display: grid;
@@ -1992,7 +2010,10 @@
     function renderCards(data) {
       const grid = document.getElementById('pet-grid');
       if (!data || data.length === 0) {
-        grid.innerHTML = `<div class="no-reports">${showFound ? 'No reunited pets yet.' : 'No reports match your search.'}</div>`;
+        let msg = 'No reports match your search.';
+        if (showFound) msg = 'No reunited pets yet.';
+        else if (nearMeActive && nearMeCity) msg = `No active reports in ${escHtml(nearMeCity)} yet — be the first to post!`;
+        grid.innerHTML = `<div class="no-reports">${msg}</div>`;
         return;
       }
       grid.innerHTML = data.map(p => {
@@ -2012,7 +2033,8 @@
             <div class="pet-card-detail">${escHtml(p.breed || '—')}</div>
             <div class="pet-card-phone">${escHtml(p.phone || '—')}</div>
             <div class="pet-card-time">${timeAgo(p.created_at)}${isOldReport(p.created_at) ? ' <span class="old-badge">May be outdated</span>' : ''}</div>
-            ${!found && currentUser && p.user_id === currentUser.id ? `<button class="found-btn" onclick="event.stopPropagation();markAsFound(${p.id})">🎉 Mark as Found</button>` : ''}
+            ${!found && !stray && currentUser && p.user_id === currentUser.id ? `<button class="found-btn" onclick="event.stopPropagation();markAsFound(${p.id})">🎉 Mark as Found</button>` : ''}
+            ${!found && !stray && currentUser && p.user_id === currentUser.id && isOldReport(p.created_at) ? `<button class="bump-btn" id="bump-${p.id}" onclick="event.stopPropagation();bumpReport(${p.id})">⬆️ Bump to Top</button>` : ''}
             ${currentUser && p.user_id === currentUser.id ? `<button class="delete-btn" onclick="event.stopPropagation();deleteReport(${p.id})">Delete Report</button>` : ''}
           </div>
         </div>`;
@@ -2031,7 +2053,7 @@
       }
       allReports = data;
       window._reportData = data;
-      const lostCount = data.filter(p => p.status !== 'found' && p.status !== 'found_stray').length;
+      const lostCount = data.filter(p => p.status !== 'found' && p.status !== 'found_stray' && !isVeryOldReport(p.created_at)).length;
       updateTabBadge(lostCount);
       updateCityDropdown(data);
       checkNewSightings();
@@ -2051,6 +2073,8 @@
       const card = document.getElementById('found-strays-card');
       if (!data || data.length === 0) { card.style.display = 'none'; return; }
       card.style.display = 'block';
+      const existingIds = new Set((window._reportData || []).map(r => r.id));
+      data.forEach(p => { if (!existingIds.has(p.id)) window._reportData.push(p); });
       document.getElementById('strays-grid').innerHTML = data.map(p => `
         <div class="pet-card pet-card-stray" onclick="openDetail(${p.id})">
           <div class="found-stray-banner">📢 Found Stray</div>
@@ -2073,6 +2097,8 @@
       const card = document.getElementById('happy-endings-card');
       if (!data || data.length === 0) { card.style.display = 'none'; return; }
       card.style.display = 'block';
+      const existingIds2 = new Set((window._reportData || []).map(r => r.id));
+      data.forEach(p => { if (!existingIds2.has(p.id)) window._reportData.push(p); });
       document.getElementById('happy-grid').innerHTML = data.map(p => `
         <div class="pet-card pet-card-found" onclick="openDetail(${p.id})">
           <div class="found-banner">🎉 Reunited!</div>
@@ -2087,6 +2113,14 @@
           </div>
         </div>
       `).join('');
+    }
+
+    async function bumpReport(id) {
+      const btn = document.getElementById('bump-' + id);
+      if (btn) { btn.disabled = true; btn.textContent = 'Bumping…'; }
+      const { error } = await db.from('lost_pets').update({ created_at: new Date().toISOString() }).eq('id', id);
+      if (error) { alert('Error: ' + error.message); if (btn) { btn.disabled = false; btn.textContent = '⬆️ Bump to Top'; } return; }
+      await loadReports();
     }
 
     async function deleteReport(id) {
@@ -2151,10 +2185,16 @@
       }
     }
 
+    function isVeryOldReport(dateStr) {
+      if (!dateStr) return false;
+      return (Date.now() - new Date(dateStr).getTime()) / 86400000 > 30;
+    }
+
     function filterReports() {
       const search = (document.getElementById('search-input').value || '').toLowerCase();
       const cityFilter = document.getElementById('city-filter').value;
       let filtered = allReports.filter(p => showFound ? p.status === 'found' : (p.status !== 'found' && p.status !== 'found_stray'));
+      if (!showFound) filtered = filtered.filter(p => !isVeryOldReport(p.created_at));
       if (activeFilter !== 'all') {
         filtered = filtered.filter(p => (p.pet_type || '').toLowerCase() === activeFilter.toLowerCase());
       }
@@ -2173,11 +2213,15 @@
       }
       renderCards(filtered);
       const pool = allReports.filter(p => showFound ? p.status === 'found' : (p.status !== 'found' && p.status !== 'found_stray'));
+      const activePool = showFound ? pool : pool.filter(p => !isVeryOldReport(p.created_at));
+      const hiddenOld = pool.length - activePool.length;
       const countEl = document.getElementById('result-count');
       if (countEl) {
-        countEl.textContent = filtered.length === pool.length
-          ? `${pool.length} report${pool.length !== 1 ? 's' : ''}`
-          : `${filtered.length} of ${pool.length} reports`;
+        let txt = filtered.length === activePool.length
+          ? `${activePool.length} report${activePool.length !== 1 ? 's' : ''}`
+          : `${filtered.length} of ${activePool.length} reports`;
+        if (hiddenOld > 0) txt += ` · ${hiddenOld} older than 30 days hidden`;
+        countEl.textContent = txt;
       }
     }
 
