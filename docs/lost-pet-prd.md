@@ -24,8 +24,8 @@ In the first panicked minutes after a pet goes missing, families don't know what
 
 ## MVP Ready Check
 
-- [ ] Page has a clear title and intro sentence
-- [ ] "What To Do If Your Pet Is Missing" section with 3–5 steps
-- [ ] "How To Help a Neighbor's Lost Pet" section
-- [ ] Final call to action (share the page / report a lost pet link)
-- [ ] Page opens in a browser without errors
+- [x] Page has a clear title and intro sentence
+- [x] "What To Do If Your Pet Is Missing" section with 3–5 steps
+- [x] "How To Help a Neighbor's Lost Pet" section
+- [x] Final call to action (share the page / report a lost pet link)
+- [x] Page opens in a browser without errors
