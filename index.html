@@ -1880,6 +1880,7 @@
     let nearMeCity = null;
     let reportType = 'lost';
     let pendingReportId = null;
+    let pendingOverlay = false;
 
     /* ── AUTH ── */
     function updateNavAuth() {
@@ -1969,6 +1970,11 @@
       currentUser = session?.user ?? null;
       updateNavAuth();
       loadReports();
+      if (currentUser && pendingOverlay) {
+        pendingOverlay = false;
+        closeAuthModal();
+        openOverlay();
+      }
     });
 
     function setReportType(type) {
@@ -2505,7 +2511,8 @@ ${p.photo_url ? `<img class="pet-img" src="${p.photo_url}" alt="${escHtml(p.pet_
     }
 
     function openOverlay() {
-      if (!currentUser) { openAuthModal('login'); return; }
+      if (!currentUser) { pendingOverlay = true; openAuthModal('login'); return; }
+      pendingOverlay = false;
       document.getElementById('overlay').classList.add('open');
       document.body.style.overflow = 'hidden';
     }
